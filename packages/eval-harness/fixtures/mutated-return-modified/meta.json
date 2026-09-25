@@ -1,0 +1,15 @@
+{
+  "prTitle": "Simplify isInvalid",
+  "prDescription": "Minor cleanup pass.",
+  "files": ["validator.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "mutated-return-modified-1",
+      "description": "The `!` negation was dropped, so `isInvalid` now returns the opposite of what its name and callers expect (it returns true for valid values).",
+      "location": { "file": "validator.ts", "line": 6 },
+      "category": "mutated-return",
+      "expectDetection": true
+    }
+  ]
+}

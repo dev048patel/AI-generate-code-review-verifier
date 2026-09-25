@@ -1,0 +1,7 @@
+{
+  "prTitle": "Add safeDivide and safeLast utilities",
+  "prDescription": "New, fully-guarded math and array helpers.",
+  "files": ["safeMath.ts"],
+  "isCleanControl": true,
+  "seededBugs": []
+}

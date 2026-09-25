@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add findUserByName lookup",
+  "prDescription": "New repository method to look users up by name.",
+  "files": ["userRepo.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "injection-newcode-1",
+      "description": "The SQL query is built by string-concatenating `name` directly into it, allowing SQL injection.",
+      "location": { "file": "userRepo.ts", "line": 6 },
+      "category": "injection",
+      "expectDetection": true
+    }
+  ]
+}

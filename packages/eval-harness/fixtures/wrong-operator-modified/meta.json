@@ -1,0 +1,15 @@
+{
+  "prTitle": "Fix pagination edge case",
+  "prDescription": "Adjust the hasNextPage check.",
+  "files": ["pagination.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "wrong-operator-modified-1",
+      "description": "Changed `<` to `<=`, so hasNextPage incorrectly reports a next page exists when `page === totalPages` (the last page).",
+      "location": { "file": "pagination.ts", "line": 2 },
+      "category": "wrong-operator",
+      "expectDetection": true
+    }
+  ]
+}

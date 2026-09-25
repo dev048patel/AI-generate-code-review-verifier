@@ -1,0 +1,83 @@
+name: AI Code Review Verifier
+description: >-
+  Trust score for pull requests (especially AI-generated ones): LLM risk review, generated tests,
+  and mutation testing of the changed lines against your own test suite.
+author: acrv
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  mode:
+    description: >-
+      execute = run the PR's code (no secrets allowed in this job); report = LLM + publish results,
+      never runs PR code; all = both in one job (only for repos where every PR author is trusted).
+    default: all
+  execution-file:
+    description: Where execute mode writes, and report mode reads, the execution results (relative to the workspace).
+    default: acrv-execution.json
+  llm-provider:
+    description: auto (Anthropic API if ANTHROPIC_API_KEY is set, else none), anthropic, bedrock, or none.
+    default: auto
+  model:
+    description: Model id override (default claude-opus-5; on Bedrock anthropic.claude-opus-5).
+    default: ""
+  sandbox:
+    description: local-unsafe (default; the Actions VM is disposable) or docker (requires the acrv-sandbox image).
+    default: local-unsafe
+  skip-mutation:
+    description: Skip mutation testing (faster, weaker signal).
+    default: "false"
+  fail-below:
+    description: Fail the step when the trust score is below this value (0 disables).
+    default: "0"
+  comment:
+    description: Post / update a PR comment with the trust score (report and all modes; needs pull-requests write).
+    default: "true"
+  github-token:
+    description: Token for the PR comment and PR lookups. Never passed to execute mode.
+    default: ${{ github.token }}
+
+outputs:
+  trust-score:
+    description: 0-100 trust score.
+    value: ${{ steps.acrv.outputs.trust-score }}
+  label:
+    description: trusted | needs-review | high-risk
+    value: ${{ steps.acrv.outputs.label }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Cache reviewer dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.action_path }}/node_modules
+        key: acrv-${{ runner.os }}-${{ hashFiles(format('{0}/package-lock.json', github.action_path)) }}
+
+    - name: Install reviewer
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        if [ ! -d node_modules ]; then npm ci --no-audit --no-fund; fi
+
+    - name: Review
+      id: acrv
+      shell: bash
+      env:
+        ACRV_MODE: ${{ inputs.mode }}
+        ACRV_EXECUTION_FILE: ${{ inputs.execution-file }}
+        ACRV_LLM_PROVIDER: ${{ inputs.llm-provider }}
+        ACRV_MODEL_ID: ${{ inputs.model }}
+        ACRV_SANDBOX: ${{ inputs.sandbox }}
+        ACRV_SKIP_MUTATION: ${{ inputs.skip-mutation }}
+        ACRV_FAIL_BELOW: ${{ inputs.fail-below }}
+        ACRV_COMMENT: ${{ inputs.comment }}
+        # The token never reaches the job that executes PR code.
+        ACRV_GITHUB_TOKEN: ${{ inputs.mode != 'execute' && inputs.github-token || '' }}
+      run: |
+        "${{ github.action_path }}/node_modules/.bin/tsx" "${{ github.action_path }}/packages/action/src/main.ts"

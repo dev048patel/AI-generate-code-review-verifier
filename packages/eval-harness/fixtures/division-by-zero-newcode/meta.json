@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add average helper",
+  "prDescription": "New statistics utility.",
+  "files": ["stats.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "division-by-zero-newcode-1",
+      "description": "`count` can be zero (e.g. averaging an empty list) with no guard, producing Infinity/NaN instead of a handled result.",
+      "location": { "file": "stats.ts", "line": 2 },
+      "category": "division-by-zero",
+      "expectDetection": true
+    }
+  ]
+}

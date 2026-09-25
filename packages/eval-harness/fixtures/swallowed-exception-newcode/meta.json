@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add chargeCardSafely wrapper",
+  "prDescription": "New helper that charges a card without letting errors propagate.",
+  "files": ["paymentGateway.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "swallowed-exception-newcode-1",
+      "description": "The catch block is empty, silently discarding the reason a charge failed instead of logging or surfacing it.",
+      "location": { "file": "paymentGateway.ts", "line": 11 },
+      "category": "swallowed-exception",
+      "expectDetection": true
+    }
+  ]
+}

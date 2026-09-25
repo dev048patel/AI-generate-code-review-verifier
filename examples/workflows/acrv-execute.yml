@@ -1,0 +1,30 @@
+# Fork-safe setup, part 1 of 2: runs the PR's code with NO secrets and a read-only token.
+# Copy to .github/workflows/acrv-execute.yml. Part 2 (acrv-report.yml) publishes the results.
+name: acrv-execute
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          # Don't leave a token in .git/config for the PR's code to find.
+          persist-credentials: false
+      - uses: YOUR_ORG/Ai-generate-code-review-verifier@v1
+        with:
+          mode: execute
+          # github-token is deliberately not passed; execute mode refuses to run with credentials.
+          github-token: ""
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acrv-execution
+          path: acrv-execution.json
+          retention-days: 3

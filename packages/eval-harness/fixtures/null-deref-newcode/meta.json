@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add getConfigValue helper",
+  "prDescription": "New utility to read a timeout from an optional config object.",
+  "files": ["config.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "null-deref-newcode-1",
+      "description": "`config` is optional but is accessed with `.timeout` directly, with no guard or optional chaining, so calling this with no argument throws.",
+      "location": { "file": "config.ts", "line": 2 },
+      "category": "removed-null-check",
+      "expectDetection": true
+    }
+  ]
+}

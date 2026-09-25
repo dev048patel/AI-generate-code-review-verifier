@@ -1,0 +1,7 @@
+{
+  "prTitle": "Improve README description",
+  "prDescription": "Docs-only clarity pass, no code changes.",
+  "files": ["README.md"],
+  "isCleanControl": true,
+  "seededBugs": []
+}

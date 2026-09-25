@@ -1,0 +1,35 @@
+{
+  "name": "ai-code-review-verifier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub App that reviews PRs (especially AI-generated ones): LLM risk summary via Bedrock, generated property/edge-case tests, mutation-testing verification, and a trust score with evidence.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint . --ext .ts,.tsx",
+    "eval": "npm run eval --workspace=@acrv/eval-harness --",
+    "dev:server": "npm run dev --workspace=@acrv/server",
+    "dev:dashboard": "npm run dev --workspace=@acrv/dashboard",
+    "mine": "npm run mine --workspace=@acrv/eval-harness --"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/typescript-checker": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^8.57.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

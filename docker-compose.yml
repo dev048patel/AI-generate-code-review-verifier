@@ -1,0 +1,60 @@
+# Single-host deployment: Postgres + web + worker. Scale workers with `docker compose up --scale worker=3`.
+#
+#   docker build -t acrv-sandbox:latest infra/sandbox
+#   cp .env.example .env   # fill in the GitHub App + LLM settings
+#   docker compose up -d
+#
+# The worker starts one throwaway sandbox container per test/mutation run via the host's Docker daemon.
+# Mounting the Docker socket makes the WORKER root-equivalent on the host (it's trusted code); the PR's code
+# runs only inside the locked-down sandbox containers. Install gVisor and set ACRV_DOCKER_RUNTIME=runsc so a
+# container escape also has to break out of a user-space kernel.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: acrv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: acrv
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acrv"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    image: acrv-app
+    build: .
+    env_file: .env
+    environment:
+      ACRV_ROLE: web
+      DATABASE_URL: postgres://acrv:${POSTGRES_PASSWORD}@postgres:5432/acrv
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: acrv-app
+    env_file: .env
+    environment:
+      ACRV_ROLE: worker
+      DATABASE_URL: postgres://acrv:${POSTGRES_PASSWORD}@postgres:5432/acrv
+      ACRV_SANDBOX: docker
+      # Must be the same path on the host and in this container: sandbox containers
+      # are started by the host daemon, which resolves bind-mount paths on the host.
+      ACRV_SANDBOX_ROOT: /var/lib/acrv/sandbox
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/acrv/sandbox:/var/lib/acrv/sandbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

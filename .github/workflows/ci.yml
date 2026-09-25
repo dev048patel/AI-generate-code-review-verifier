@@ -1,0 +1,48 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: acrv
+          POSTGRES_PASSWORD: acrv
+          POSTGRES_DB: acrv_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U acrv" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc -b packages/core packages/llm packages/mutation packages/test-generator packages/pipeline packages/eval-harness packages/server packages/action
+      - run: npm test
+        env:
+          ACRV_TEST_DATABASE_URL: postgres://acrv:acrv@localhost:5432/acrv_test
+          ACRV_NETWORK_TESTS: "1"
+      - run: npm test --workspace=@acrv/dashboard
+      - run: npm run eval
+
+  sandbox-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t acrv-sandbox:ci infra/sandbox
+      # Proves the lockdown flags work on a real daemon: no network inside the sandbox.
+      - run: |
+          if docker run --rm --network none --read-only --cap-drop ALL acrv-sandbox:ci \
+               node -e "fetch('https://example.com').then(()=>process.exit(0),()=>process.exit(1))"; then
+            echo "sandbox had network access"; exit 1
+          fi

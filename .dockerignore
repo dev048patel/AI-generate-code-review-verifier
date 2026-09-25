@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+**/dist
+*.sqlite*
+sandbox-runs
+packages/eval-harness/output
+packages/eval-harness/.mine-cache
+packages/eval-harness/fixtures-real
+.env

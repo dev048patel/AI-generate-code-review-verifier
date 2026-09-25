@@ -1,0 +1,12 @@
+{
+  "name": "acrv-sandbox-tooling",
+  "private": true,
+  "description": "Tooling baked into the sandbox image at /opt/acrv/node_modules. Pinned to the versions the reviewer is tested against.",
+  "dependencies": {
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "fast-check": "3.23.2",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}

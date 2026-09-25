@@ -1,0 +1,35 @@
+# Fork-safe setup, part 2 of 2: runs in the base repo's context with secrets, and never executes PR code.
+# It reads the diff from git, calls the LLM, and folds in part 1's artifact -- which it treats as untrusted
+# input (schema-validated, and its PR number is checked against the commit that part 1 actually built).
+name: acrv-report
+on:
+  workflow_run:
+    workflows: [acrv-execute]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: acrv-execution
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - uses: YOUR_ORG/Ai-generate-code-review-verifier@v1
+        with:
+          mode: report
+          fail-below: "0"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

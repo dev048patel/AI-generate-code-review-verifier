@@ -1,0 +1,15 @@
+{
+  "prTitle": "Streamline endSession",
+  "prDescription": "Minor cleanup.",
+  "files": ["session.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "missing-await-modified-1",
+      "description": "`await` was removed from `db.deleteSession(sessionId)`, so the function returns and records the session as ended before the deletion actually completes (or if it fails).",
+      "location": { "file": "session.ts", "line": 7 },
+      "category": "missing-await",
+      "expectDetection": true
+    }
+  ]
+}

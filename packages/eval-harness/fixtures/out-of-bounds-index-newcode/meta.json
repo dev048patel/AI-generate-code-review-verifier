@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add lastElement helper",
+  "prDescription": "New utility to get the last item of an array.",
+  "files": ["lastElement.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "out-of-bounds-index-newcode-1",
+      "description": "`items[items.length]` is one past the last valid index (should be `items.length - 1`), so this always returns undefined.",
+      "location": { "file": "lastElement.ts", "line": 2 },
+      "category": "out-of-bounds-index",
+      "expectDetection": true
+    }
+  ]
+}

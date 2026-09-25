@@ -1,0 +1,15 @@
+{
+  "prTitle": "Loosen idsMatch comparison",
+  "prDescription": "Small readability tweak.",
+  "files": ["idMatch.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "type-coercion-modified-1",
+      "description": "`===` was changed to `==`, allowing unexpected type coercion (e.g. numeric and string ids comparing equal) that could match the wrong record.",
+      "location": { "file": "idMatch.ts", "line": 2 },
+      "category": "type-coercion",
+      "expectDetection": true
+    }
+  ]
+}

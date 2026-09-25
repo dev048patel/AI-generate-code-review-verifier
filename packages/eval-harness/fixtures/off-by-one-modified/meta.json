@@ -1,0 +1,15 @@
+{
+  "prTitle": "Tidy up sumRange loop",
+  "prDescription": "Minor refactor of the summation loop for readability.",
+  "files": ["sumRange.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "off-by-one-modified-1",
+      "description": "Loop bound changed from `<` to `<=` against `.length`, reading one element past the end of the array (values[values.length] is undefined, so the sum becomes NaN).",
+      "location": { "file": "sumRange.ts", "line": 3 },
+      "category": "off-by-one",
+      "expectDetection": true
+    }
+  ]
+}

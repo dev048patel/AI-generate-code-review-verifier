@@ -1,0 +1,26 @@
+# Single-job setup for private repos where every PR author is trusted.
+# The PR's code runs in the same job as the API key, so don't use this on repos that accept outside PRs.
+name: acrv
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: YOUR_ORG/Ai-generate-code-review-verifier@v1
+        with:
+          mode: all
+          fail-below: "50"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

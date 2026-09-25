@@ -1,0 +1,15 @@
+{
+  "prTitle": "Relax eligibility check",
+  "prDescription": "Small tweak to eligibility logic.",
+  "files": ["eligibility.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "boolean-logic-modified-1",
+      "description": "`&&` was changed to `||`, so a user under 18 becomes eligible merely by having consent, bypassing the age requirement entirely.",
+      "location": { "file": "eligibility.ts", "line": 2 },
+      "category": "boolean-logic",
+      "expectDetection": true
+    }
+  ]
+}

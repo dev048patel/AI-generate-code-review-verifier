@@ -1,0 +1,15 @@
+{
+  "prTitle": "Simplify getUserName",
+  "prDescription": "Removes what looked like dead code.",
+  "files": ["getUserName.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "removed-null-check-modified-1",
+      "description": "The `user === null` guard was removed; `user.name` now throws when a null user is passed, which the type signature explicitly allows.",
+      "location": { "file": "getUserName.ts", "line": 2 },
+      "category": "removed-null-check",
+      "expectDetection": true
+    }
+  ]
+}

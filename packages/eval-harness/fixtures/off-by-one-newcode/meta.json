@@ -1,0 +1,15 @@
+{
+  "prTitle": "Add averageAll helper",
+  "prDescription": "New utility to average a list of numbers.",
+  "files": ["stats2.ts"],
+  "isCleanControl": false,
+  "seededBugs": [
+    {
+      "id": "off-by-one-newcode-1",
+      "description": "Brand-new function whose loop bound uses `<=` against `.length`, reading one past the end of the array.",
+      "location": { "file": "stats2.ts", "line": 3 },
+      "category": "off-by-one",
+      "expectDetection": true
+    }
+  ]
+}

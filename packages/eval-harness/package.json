@@ -1,0 +1,23 @@
+{
+  "name": "@acrv/eval-harness",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "eval": "tsx src/cli.ts",
+    "mine": "tsx src/mine/cli.ts"
+  },
+  "dependencies": {
+    "@acrv/core": "0.1.0",
+    "@acrv/llm": "0.1.0",
+    "@acrv/mutation": "0.1.0",
+    "@acrv/pipeline": "0.1.0",
+    "@acrv/test-generator": "0.1.0",
+    "diff": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^6.0.0",
+    "tsx": "^4.19.2"
+  }
+}
