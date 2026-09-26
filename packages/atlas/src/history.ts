@@ -1,9 +1,11 @@
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
+import { buildArchitecture, diffArchitecture, type Architecture } from "./architecture.js";
+import { detectAi, detectBot, landing } from "./authorship.js";
 import { diffGraphs } from "./diff.js";
 import { extractFacts, isCodeFile, isTestFile } from "./extract.js";
-import { BlobReader, changedFiles, commitPatches, git, listCommits, listTree, MAX_FILE_BYTES } from "./git.js";
-import { buildFlows } from "./flow.js";
+import { BlobReader, changedFiles, commitPatches, git, listCommits, listTree, MAX_FILE_BYTES, mergedCommits } from "./git.js";
+import { buildFlows, diffFlows } from "./flow.js";
 import { buildGraph } from "./graph.js";
 import type { CommitPoint, FileFacts, HistoryAnalysis, Hotspot, Recommendation, RepoGraph, RequestFlow } from "./types.js";
 
@@ -131,6 +133,10 @@ export interface AnalyzeHistoryOptions {
 }
 
 const TRIVIAL_LINE = /^[\s{}()[\];,]*$/;
+/** Output of tools, not code someone (or some AI) wrote: kept out of token estimates. */
+export const GENERATED_PATH = /(^|\/)(dist|build|out|vendor|generated|coverage|\.next|\.nuxt|node_modules|public\/assets)\/|\.min\.[cm]?js$|\.bundle\.[cm]?js$|[.-]generated\.[cm]?[jt]sx?$|(^|\/)(package-lock|yarn\.lock|pnpm-lock)/;
+/** Minified or embedded-data lines. */
+const MACHINE_LINE_CHARS = 400;
 
 /**
  * Replays the newest `maxCommits` first-parent commits and records how the
@@ -154,6 +160,8 @@ export async function analyzeHistory(repoDir: string, options: AnalyzeHistoryOpt
   let truncated = false;
   let previous: RepoGraph | undefined;
   let head: RepoGraph | undefined;
+  let previousFlows: RequestFlow[] | undefined;
+  let previousArch: Architecture | undefined;
 
   // Line provenance for "thrown away" detection: file -> line text -> commit indexes that added it.
   const provenance = new Map<string, Map<string, number[]>>();
@@ -178,17 +186,26 @@ export async function analyzeHistory(repoDir: string, options: AnalyzeHistoryOpt
       }
 
       const facts = await Promise.all([...tree.entries()].map(([p, b]) => cache.get(reader, p, b)));
-      const graph = buildGraph(facts.filter((f): f is FileFacts => Boolean(f)), { commit: c.sha, entryFiles: entries });
+      const present = facts.filter((f): f is FileFacts => Boolean(f));
+      const flows = buildFlows(present);
+      const graph = buildGraph(present, { commit: c.sha, entryFiles: entries, flows });
+      const arch = buildArchitecture(flows);
 
       // Churn and short-lived lines (the first commit's patch is its whole pre-window history: skip it).
       let added = 0;
       let deleted = 0;
       let shortLived = 0;
       let shortLivedChars = 0;
+      let addedChars = 0;
+      let deletedChars = 0;
       const patch = i > 0 ? patches.get(c.sha) : undefined;
       for (const f of patch?.files ?? []) {
         added += f.added.length;
         deleted += f.deleted.length;
+        if (!GENERATED_PATH.test(f.path)) {
+          for (const l of f.added) if (l.length <= MACHINE_LINE_CHARS) addedChars += l.length + 1;
+          for (const l of f.deleted) if (l.length <= MACHINE_LINE_CHARS) deletedChars += l.length + 1;
+        }
         const s = fileStats.get(f.path) ?? { commits: 0, churn: 0 };
         s.commits++;
         s.churn += f.added.length + f.deleted.length;
@@ -220,11 +237,32 @@ export async function analyzeHistory(repoDir: string, options: AnalyzeHistoryOpt
       }
 
       const d = previous ? diffGraphs(previous, graph) : undefined;
+      let ai = detectAi(c);
+      if (!ai && c.parents >= 2) {
+        // A merge commit's own message rarely says who wrote the code: read the trailers of the commits it merged.
+        const merged = await mergedCommits(repoDir, c.sha);
+        const marks = merged.map((m) => detectAi(m)).filter((m): m is NonNullable<typeof m> => Boolean(m));
+        if (marks.length) ai = { tool: marks[0]!.tool, evidence: `${marks.length} of ${merged.length} commits in this merge: ${marks[0]!.evidence}`.slice(0, 160) };
+      }
+      const bot = ai ? undefined : detectBot(c);
+      const flowChanges = previousFlows
+        ? diffFlows(previousFlows, flows)
+            .filter((x) => x.status !== "same")
+            .slice(0, 12)
+            .map((x) => ({ label: x.label, status: x.status, summary: x.summary }))
+        : [];
       points.push({
         sha: c.sha,
         author: c.author,
+        email: c.email,
         date: c.date,
         subject: c.subject,
+        ...(ai ? { ai } : {}),
+        ...(bot ? { bot } : {}),
+        landing: landing(c),
+        chars: { added: i > 0 ? addedChars : 0, deleted: i > 0 ? deletedChars : 0 },
+        flowChanges,
+        architecture: previousArch ? diffArchitecture(previousArch, arch).summary.slice(0, 12) : [],
         metrics: graph.metrics,
         churn: { added, deleted, files: patch?.files.length ?? 0 },
         shortLivedLines: shortLived,
@@ -236,9 +274,12 @@ export async function analyzeHistory(repoDir: string, options: AnalyzeHistoryOpt
           edgesRemoved: d?.removedEdges.length ?? 0,
           newFindings: d ? d.newFindings.map((f) => f.id) : [],
           resolvedFindings: d ? d.resolvedFindings.map((f) => f.id) : [],
+          introduced: d ? d.newFindings.slice(0, 12) : [],
         },
       });
       previous = graph;
+      previousFlows = flows;
+      previousArch = arch;
       head = graph;
       options.onProgress?.(i + 1, commits.length);
     }

@@ -83,19 +83,34 @@ export class BlobReader {
 export interface CommitInfo {
   sha: string;
   author: string;
+  email: string;
   date: string;
   subject: string;
+  /** Message after the subject: trailers such as `Co-Authored-By:` live here. */
+  body: string;
+  /** 2+ for merge commits. */
+  parents: number;
 }
 
 /** The newest `max` first-parent commits of `ref`, returned oldest first. */
 export async function listCommits(repoDir: string, ref: string, max: number): Promise<CommitInfo[]> {
-  const out = await git(repoDir, ["log", "--first-parent", "--format=%H%x1f%an%x1f%aI%x1f%s", "-n", String(max), ref, "--"]);
+  // Fields split by \x1f, records ended by \x1e: bodies contain newlines.
+  const out = await git(repoDir, ["log", "--first-parent", "--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%P%x1f%s%x1f%b%x1e", "-n", String(max), ref, "--"]);
   return out
-    .split("\n")
+    .split("\x1e")
+    .map((r) => r.replace(/^\n+/, ""))
     .filter(Boolean)
-    .map((l) => {
-      const [sha, author, date, subject] = l.split("\x1f");
-      return { sha: sha!, author: author ?? "", date: date ?? "", subject: subject ?? "" };
+    .map((r) => {
+      const [sha, author, email, date, parents, subject, body] = r.split("\x1f");
+      return {
+        sha: sha!,
+        author: author ?? "",
+        email: email ?? "",
+        date: date ?? "",
+        subject: subject ?? "",
+        body: (body ?? "").trim().slice(0, 4000),
+        parents: (parents ?? "").split(" ").filter(Boolean).length,
+      };
     })
     .reverse();
 }
@@ -185,4 +200,21 @@ export async function commitPatches(repoDir: string, ref: string, max: number): 
     patches.set(sha, patch);
   }
   return patches;
+}
+
+/** The commits a merge brought in (its second parent's side), for reading their trailers. */
+export async function mergedCommits(repoDir: string, merge: string, max = 100): Promise<Array<Pick<CommitInfo, "author" | "email" | "subject" | "body">>> {
+  try {
+    const out = await git(repoDir, ["log", "--format=%an%x1f%ae%x1f%s%x1f%b%x1e", "-n", String(max), `${merge}^1..${merge}^2`, "--"]);
+    return out
+      .split("\x1e")
+      .map((r) => r.replace(/^\n+/, ""))
+      .filter(Boolean)
+      .map((r) => {
+        const [author, email, subject, body] = r.split("\x1f");
+        return { author: author ?? "", email: email ?? "", subject: subject ?? "", body: (body ?? "").trim().slice(0, 4000) };
+      });
+  } catch {
+    return []; // shallow clone: the branch side isn't there
+  }
 }

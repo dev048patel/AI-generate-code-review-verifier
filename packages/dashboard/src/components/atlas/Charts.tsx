@@ -112,6 +112,21 @@ export function ChurnChart({ commits, onPick }: { commits: CommitPoint[]; onPick
   const scale = ph / (maxUp + maxDown);
   const band = pw / Math.max(1, shown.length);
   const bw = Math.max(1, Math.min(24, band - 2)); // capped width, 2px surface gap between bars
+  // Broken bars carry their value as a label; neighbours' labels would collide, so keep one per ~44 units.
+  const labelled = (clipped: (c: CommitPoint) => boolean) => {
+    const keep = new Set<number>();
+    let lastX = -Infinity;
+    shown.forEach((c, i) => {
+      const cx = m.left + (i + 0.5) * band;
+      if (clipped(c) && cx - lastX >= 44) {
+        keep.add(i);
+        lastX = cx;
+      }
+    });
+    return keep;
+  };
+  const upLabels = labelled((c) => c.churn.added > maxUp);
+  const downLabels = labelled((c) => c.churn.deleted > maxDown);
 
   return (
     <div>
@@ -151,17 +166,17 @@ export function ChurnChart({ commits, onPick }: { commits: CommitPoint[]; onPick
               {upClipped && (
                 <>
                   <rect x={x - 1} y={mid - up + 10} width={bw + 2} height={3} fill="var(--panel)" />
-                  <text x={x + bw / 2} y={mid - up - 4} fontSize={10} textAnchor="middle" fill="var(--text-primary)">
+                  {upLabels.has(i) && <text x={x + bw / 2} y={mid - up - 4} fontSize={10} textAnchor="middle" fill="var(--text-primary)">
                     +{fmt(c.churn.added)}
-                  </text>
+                  </text>}
                 </>
               )}
               {downClipped && (
                 <>
                   <rect x={x - 1} y={mid + down - 13} width={bw + 2} height={3} fill="var(--panel)" />
-                  <text x={x + bw / 2} y={mid + down + 12} fontSize={10} textAnchor="middle" fill="var(--text-primary)">
+                  {downLabels.has(i) && <text x={x + bw / 2} y={mid + down + 12} fontSize={10} textAnchor="middle" fill="var(--text-primary)">
                     −{fmt(c.churn.deleted)}
-                  </text>
+                  </text>}
                 </>
               )}
             </g>

@@ -10,3 +10,5 @@ export * from "./report.js";
 export * from "./calls.js";
 export * from "./flow.js";
 export * from "./architecture.js";
+export * from "./authorship.js";
+export * from "./prompts.js";

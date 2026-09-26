@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   analyzeHistory,
   buildArchitecture,
+  buildReport,
   compareRuntime,
   diffArchitecture,
   diffFlows,
@@ -19,6 +20,7 @@ import {
   type HistoryAnalysis,
   type OtlpTraces,
   type RepoGraph,
+  type RepoReport,
   type RequestFlow,
   type RuntimeCoverage,
   type RuntimeSnapshot,
@@ -66,6 +68,8 @@ interface RepoState {
   job?: AtlasJob;
   analysis?: HistoryAnalysis;
   analyzedAt?: number;
+  /** Built on first request after each analysis. */
+  report?: RepoReport;
   runtime: RuntimeAggregator;
   listeners: Set<(s: RuntimeSnapshot) => void>;
   lastUsed: number;
@@ -162,6 +166,7 @@ export class AtlasService {
           onProgress: (done, total) => (job.progress = { done, total }),
         });
         s.analyzedAt = Date.now();
+        s.report = undefined;
         job.status = "done";
       } catch (err) {
         job.status = "failed";
@@ -193,6 +198,16 @@ export class AtlasService {
   /** Every request, step by step, at a commit. */
   async flows(repo: string, ref: string): Promise<RequestFlow[]> {
     return (await this.mapAt(repo, ref)).flows;
+  }
+
+  /** Open problems with fixes and ready-to-paste prompts, per-commit fix prompts, and a fix-everything prompt. */
+  async report(repo: string): Promise<RepoReport> {
+    const s = this.requireAnalyzed(repo);
+    if (!s.report) {
+      const { flows } = await mapAtRef(s.dir, "refs/acrv/head", s.cache);
+      s.report = buildReport(s.analysis!, flows);
+    }
+    return s.report;
   }
 
   /** The app as an architecture diagram: parts, connections and one story per request. */

@@ -66,6 +66,13 @@ export interface GraphDiff {
 }
 
 export interface CommitPoint {
+  email?: string;
+  ai?: { tool: string; evidence: string };
+  bot?: string;
+  landing?: { via: "pr" | "push"; pr?: number; title?: string };
+  chars?: { added: number; deleted: number };
+  flowChanges?: Array<{ label: string; status: string; summary: string }>;
+  architecture?: string[];
   sha: string;
   author: string;
   date: string;
@@ -73,6 +80,7 @@ export interface CommitPoint {
   metrics: GraphMetrics;
   churn: { added: number; deleted: number; files: number };
   shortLivedLines: number;
+  shortLivedChars?: number;
   delta: {
     modulesAdded: number;
     modulesRemoved: number;
@@ -80,6 +88,7 @@ export interface CommitPoint {
     edgesRemoved: number;
     newFindings: string[];
     resolvedFindings: string[];
+    introduced?: AtlasFinding[];
   };
 }
 
@@ -244,4 +253,33 @@ export interface ArchitectureDiff {
   components: Array<ArchComponent & { status: ArchStatus }>;
   edges: Array<ArchEdge & { status: ArchStatus }>;
   summary: string[];
+}
+
+export type ProblemKind = AtlasFinding["kind"] | "no-sign-in-check" | "unchecked-input";
+
+export interface RepoProblem {
+  id: string;
+  kind: ProblemKind;
+  severity: AtlasFinding["severity"];
+  title: string;
+  why: string;
+  fix: string[];
+  where?: { file: string; line?: number };
+  routes?: string[];
+  introducedIn?: { sha: string; subject: string; author: string; date: string; ai?: string; pr?: number };
+  prompt: string;
+}
+
+export interface CommitFix {
+  sha: string;
+  open: string[];
+  fixedLater: string[];
+  prompt?: string;
+}
+
+export interface RepoReport {
+  repo?: string;
+  problems: RepoProblem[];
+  fixAllPrompt: string;
+  commits: CommitFix[];
 }

@@ -164,8 +164,21 @@ export interface GraphDiff {
 export interface CommitPoint {
   sha: string;
   author: string;
+  email?: string;
   date: string;
   subject: string;
+  /** AI tool the commit is marked as written with (co-author trailer, generated-with footer, agent identity). */
+  ai?: { tool: string; evidence: string };
+  /** Automation such as dependabot. */
+  bot?: string;
+  /** Merged through a pull request, or pushed straight to the branch. */
+  landing?: { via: "pr" | "push"; pr?: number; title?: string };
+  /** Characters of code added / deleted: the basis for token estimates. */
+  chars?: { added: number; deleted: number };
+  /** Requests whose path through the code this commit changed ("POST /login: − checks the password"). */
+  flowChanges?: Array<{ label: string; status: string; summary: string }>;
+  /** Parts of the architecture it added or removed ("+ Password hashing", "⚠ now: no rate limiter"). */
+  architecture?: string[];
   metrics: GraphMetrics;
   churn: { added: number; deleted: number; files: number };
   /** Lines deleted in this commit that had been added within the previous few commits. */
@@ -178,6 +191,8 @@ export interface CommitPoint {
     edgesRemoved: number;
     newFindings: string[];
     resolvedFindings: string[];
+    /** Full detail of what it introduced, kept even if a later commit fixes it (for fix prompts). */
+    introduced?: AtlasFinding[];
   };
 }
 

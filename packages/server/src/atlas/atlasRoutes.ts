@@ -72,6 +72,12 @@ export function mountAtlas(app: Express, options: AtlasRouteOptions): void {
   );
 
   app.get(
+    "/api/atlas/:owner/:repo/report",
+    readAuth,
+    handle((req) => service.report(repoOf(req))),
+  );
+
+  app.get(
     "/api/atlas/:owner/:repo/architecture",
     readAuth,
     handle((req) => service.architecture(repoOf(req), typeof req.query.ref === "string" ? req.query.ref : "HEAD")),

@@ -138,6 +138,12 @@ describe("atlas routes", () => {
       "GET /health · Handles a request",
     ]);
     expect(cmp.body.architecture.summary).toEqual(["⚠ now: no rate limiter", "− Rate limiter"]);
+    const report = await request(a).get("/api/atlas/acme/api/report");
+    expect(report.body.problems.map((p: { title: string; introducedIn?: { sha: string } }) => [p.title, p.introducedIn?.sha])).toEqual([
+      ["POST /login has no rate limiting", shas[1]],
+    ]);
+    expect(report.body.problems[0].prompt).toContain("You are working in the repository acme/api.");
+    expect(report.body.commits[0]).toMatchObject({ sha: shas[1], open: ["auth-route-no-rate-limit:POST /login"] });
     expect((await request(a).get("/api/atlas/acme/other/graph")).status).toBe(409);
   });
 

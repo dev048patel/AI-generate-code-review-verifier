@@ -8,6 +8,7 @@ import type {
   GraphMetrics,
   GraphNode,
   RepoGraph,
+  RequestFlow,
 } from "./types.js";
 
 const ENTRY_RE =
@@ -25,7 +26,10 @@ export function groupOf(file: string): string {
  * as nodes; imports and "route handled by module" as edges; plus the gaps
  * worth showing a developer.
  */
-export function buildGraph(allFacts: FileFacts[], options: { commit?: string; entryFiles?: string[] } = {}): RepoGraph {
+export function buildGraph(
+  allFacts: FileFacts[],
+  options: { commit?: string; entryFiles?: string[]; /** Flows already built from the same facts. */ flows?: RequestFlow[] } = {},
+): RepoGraph {
   const facts = allFacts.filter((f) => f.path);
   const files = new Set(facts.map((f) => f.path));
   const byPath = new Map(facts.map((f) => [f.path, f]));
@@ -119,7 +123,7 @@ export function buildGraph(allFacts: FileFacts[], options: { commit?: string; en
   // endpoints that handle passwords whatever their path (e.g. sign-up at POST /users).
   let authRoutes = 0;
   let unprotected = 0;
-  for (const flow of buildFlows(facts)) {
+  for (const flow of options.flows ?? buildFlows(facts)) {
     const credential = isAuthRoute(flow) || flow.steps.some((s) => s.key === "missing:rate-limit");
     if (!credential) continue;
     authRoutes++;

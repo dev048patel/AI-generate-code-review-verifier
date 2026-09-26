@@ -1,4 +1,4 @@
-import type { Architecture, AtlasJob, CompareResult, HistoryAnalysis, RepoGraph, RequestFlow } from "./atlasTypes";
+import type { Architecture, AtlasJob, CompareResult, HistoryAnalysis, RepoGraph, RepoReport, RequestFlow } from "./atlasTypes";
 import type { BenchmarkSummary, FixtureSummary, OpenPullRequestSummary, ReviewResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
@@ -87,6 +87,8 @@ export const api = {
 
   atlasFlows: (repo: string, ref = "HEAD") =>
     fetch(`/api/atlas/${repoPath(repo)}/flows?ref=${encodeURIComponent(ref)}`).then((r) => json<RequestFlow[]>(r)),
+
+  atlasReport: (repo: string) => fetch(`/api/atlas/${repoPath(repo)}/report`).then((r) => json<RepoReport>(r)),
 
   atlasArchitecture: (repo: string, ref = "HEAD") =>
     fetch(`/api/atlas/${repoPath(repo)}/architecture?ref=${encodeURIComponent(ref)}`).then((r) => json<Architecture>(r)),
