@@ -6,6 +6,7 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../atlas" },
     { "path": "../core" },
     { "path": "../eval-harness" },
     { "path": "../llm" },

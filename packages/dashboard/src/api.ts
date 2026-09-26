@@ -1,3 +1,4 @@
+import type { Architecture, AtlasJob, CompareResult, HistoryAnalysis, RepoGraph, RequestFlow } from "./atlasTypes";
 import type { BenchmarkSummary, FixtureSummary, OpenPullRequestSummary, ReviewResult } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
@@ -70,4 +71,41 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((r) => json<{ review: ReviewResult }>(r)),
+
+  atlasAnalyze: (repo: string, maxCommits: number) =>
+    fetch("/api/atlas/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo, maxCommits }),
+    }).then((r) => json<{ job: AtlasJob }>(r)),
+
+  atlasStatus: (repo: string) =>
+    fetch(`/api/atlas/${repoPath(repo)}`).then((r) => json<{ job?: AtlasJob; analysis?: HistoryAnalysis }>(r)),
+
+  atlasGraph: (repo: string, ref: string) =>
+    fetch(`/api/atlas/${repoPath(repo)}/graph?ref=${encodeURIComponent(ref)}`).then((r) => json<RepoGraph>(r)),
+
+  atlasFlows: (repo: string, ref = "HEAD") =>
+    fetch(`/api/atlas/${repoPath(repo)}/flows?ref=${encodeURIComponent(ref)}`).then((r) => json<RequestFlow[]>(r)),
+
+  atlasArchitecture: (repo: string, ref = "HEAD") =>
+    fetch(`/api/atlas/${repoPath(repo)}/architecture?ref=${encodeURIComponent(ref)}`).then((r) => json<Architecture>(r)),
+
+  atlasCompare: (repo: string, from: string, to: string) =>
+    fetch(`/api/atlas/${repoPath(repo)}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then((r) =>
+      json<CompareResult>(r),
+    ),
+
+  atlasPullRequest: (repo: string, prNumber: number) =>
+    fetch(`/api/atlas/${repoPath(repo)}/pulls/${prNumber}?graphs=1`).then((r) =>
+      json<CompareResult & { base: string; head: string }>(r),
+    ),
+
+  /** Server-sent events stream of the live runtime view. */
+  atlasRuntimeUrl: (repo: string) => `/api/atlas/${repoPath(repo)}/runtime/stream`,
 };
+
+function repoPath(repo: string): string {
+  const [owner, name] = repo.split("/");
+  return `${encodeURIComponent(owner ?? "")}/${encodeURIComponent(name ?? "")}`;
+}

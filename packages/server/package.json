@@ -9,6 +9,7 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@acrv/atlas": "0.1.0",
     "@acrv/core": "0.1.0",
     "@acrv/eval-harness": "0.1.0",
     "@acrv/llm": "0.1.0",

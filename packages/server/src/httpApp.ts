@@ -16,6 +16,8 @@ import {
   type OAuthConfig,
 } from "./auth/githubOAuth.js";
 import type { SessionStore } from "./auth/sessions.js";
+import { mountAtlas } from "./atlas/atlasRoutes.js";
+import type { AtlasService } from "./atlas/atlasService.js";
 import { listOpenPullRequests, RestGitHubClient, type GitHubClient } from "./githubClient.js";
 import type { Logger, Metrics } from "./observability.js";
 import type { JobQueue } from "./queue/JobQueue.js";
@@ -54,6 +56,8 @@ export interface CreateAppOptions {
   metrics?: Metrics;
   metricsToken?: string;
   logger?: Logger;
+  /** Repo Atlas: repo maps, history, PR impact and live traces. */
+  atlas?: { service: AtlasService; traceToken?: string; apiToken?: string };
 }
 
 interface RequestWithRawBody extends AuthedRequest {
@@ -361,6 +365,11 @@ export function createApp(options: CreateAppOptions): Express {
     }
   });
 
+  if (options.atlas) {
+    if (production && !options.atlas.traceToken) throw new Error("Production mode requires ACRV_TRACE_TOKEN for /v1/traces");
+    mountAtlas(app, { ...options.atlas, signedIn, limitExpensive });
+  }
+
   app.get("/api/eval-report", async (_req, res) => {
     try {
       const path = options.evalReportPath ?? new URL("../../eval-harness/output/eval-report.json", import.meta.url);
@@ -389,7 +398,7 @@ export function createApp(options: CreateAppOptions): Express {
     const dir = path.resolve(options.dashboardDir);
     app.use(express.static(dir, { index: false, maxAge: "1h" }));
     // SPA fallback for client-side routes.
-    app.get(/^\/(?!api\/|auth\/|webhooks\/|metrics|healthz).*/, (_req, res) => res.sendFile(path.join(dir, "index.html")));
+    app.get(/^\/(?!api\/|auth\/|webhooks\/|v1\/|metrics|healthz).*/, (_req, res) => res.sendFile(path.join(dir, "index.html")));
   }
 
   return app;

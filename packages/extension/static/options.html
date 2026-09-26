@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Repo Atlas settings</title>
+    <style>
+      body { font: 13px system-ui, sans-serif; margin: 16px; min-width: 320px; color: #1f2328; }
+      label { display: block; margin: 12px 0 4px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+      button { margin-top: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid #1f883d; background: #1f883d; color: #fff; cursor: pointer; }
+      p { color: #59636e; }
+      #status { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <h3>Repo Atlas</h3>
+    <p>Where your Code Review Verifier server runs, and the token it gave you for the extension.</p>
+    <label for="server">Server URL</label>
+    <input id="server" type="url" placeholder="https://acrv.example.com" />
+    <label for="token">API token (ACRV_ATLAS_API_TOKEN)</label>
+    <input id="token" type="password" placeholder="optional on a local server" autocomplete="off" />
+    <button id="save">Save</button>
+    <div id="status" role="status"></div>
+    <script src="options.js" type="module"></script>
+  </body>
+</html>

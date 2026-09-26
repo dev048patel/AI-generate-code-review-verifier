@@ -105,6 +105,8 @@ A dark, terminal/HUD-styled React app — four pages:
 | `@acrv/mutation` | Sandbox executors: `DockerExecutor` (no network, read-only, no capabilities, resource limits, non-root, optional gVisor) and a scrubbed-environment `LocalProcessExecutor` for trusted code. Also the project runner: detects npm/pnpm/yarn and vitest/jest/mocha, installs with lifecycle scripts off and then runs them offline, and runs **Stryker on only the changed lines against the project's own test suite**. |
 | `@acrv/pipeline` | `runReview()` (diff-only mode: fixtures, pasted diffs, Live GitHub) and `runWorkspaceReview()` / `executeWorkspace()` (real-checkout mode: git diff from objects, generated tests next to the real sources, own-test mutation). Untrusted PR code only runs under an executor that allows it. |
 | `@acrv/server` | Webhook receiver (HMAC plus delivery-id dedupe), a Postgres job queue (`SKIP LOCKED`, supersede, retry, dead-letter, heartbeat recovery), workers, GitHub App auth (repo-scoped least-privilege installation tokens), Check Runs, GitHub OAuth sign-in with per-repo access control, CSRF checks, rate limits, per-account LLM budgets, JSON logs and `/metrics`. |
+| `@acrv/atlas` | **Repo Atlas**: parses a repo (syntax only, never executed) into a map of modules, HTTP routes and packages; flags gaps (auth routes without rate limiting, broken imports/exports, cycles, dead modules); replays commit history; diffs any two versions; aggregates OpenTelemetry traces into a live call graph. CLI: `npm run atlas -- diff`. |
+| `@acrv/extension` | Chrome extension: a Repo Atlas panel on GitHub PR pages ("what this PR changes") and an "Open in Repo Atlas" button on repos. |
 | `@acrv/action` | The GitHub Action (`action.yml`): `execute` / `report` / `all` modes, annotations, job summary, PR comment, and a `fail-below` gate. |
 | `@acrv/eval-harness` | 15 fixtures under `fixtures/`, each a before/after file pair plus a `meta.json` of seeded bugs; `runBenchmark()` runs the real pipeline against each and computes precision/recall/F1 for the full pipeline and for a rules-only baseline. |
 | `@acrv/dashboard` | React + Vite UI (dark terminal/HUD theme): review history, a **Live GitHub** page that fetches and analyzes real public PRs, a review detail page (trust gauge, evidence, generated tests, mutation results), the evaluation report (precision/recall/F1 comparison chart), and a "Try it" page for seeded examples or a pasted diff. |
@@ -184,6 +186,75 @@ at `POST /webhooks/github` and `pull_request` events (`opened`, `synchronize`,
   lifecycle scripts disabled, and scripts then run with no network. File contents are read
   from git objects (a committed symlink can't exfiltrate host files). Everything a model or
   an execution job produces is sanitized before it's rendered to GitHub.
+
+## Repo Atlas: see how a repo is built and how every change moves it
+
+Type a repo name into the dashboard's **Repo Atlas** page (or run the CLI inside any repo) and you get:
+
+- **Diagram** (the first tab): an architecture diagram generated from the code, in the style of
+  [Archify](https://github.com/tt-a1i/archify) but not drawn by hand. The parts of the app sit in zones that
+  read left to right: Clients → Middleware → Checks → Route handlers → Services → Data & integrations
+  (database, password hashing, login tokens, outside APIs). Arrows are labelled with what travels along them
+  (`POST /api/users/login`, `read user`, `bcrypt.compare`). A missing safeguard is a red dashed box on the
+  path, so an unprotected login visibly runs through "No rate limiter".
+  - **Guided views**: the most important requests, worst gaps first. **▶ Play story** walks one request
+    through the diagram hop by hop and dims everything else.
+  - **Sequence** mode: the same request as a sequence chart, with one column per part and one arrow per hop,
+    including what comes back (`200 OK`, `401`).
+  - Click a box to see its code locations (file:line) and every request that passes through it. Click a
+    legend entry to focus on one kind of part. **Export SVG** saves the diagram.
+  - Links are shareable: `…/atlas?repo=o/r#story=post-api-users-login&mode=sequence&step=4`.
+  - In **Compare** and PR preview, both versions are drawn on one diagram: new parts and arrows in green,
+    removed ones in red dashes, with a summary such as "fixed: no rate limiter · + Password hashing".
+- **Request flow** (the first tab): pick any HTTP route and read what happens to one request, in order and
+  in plain words. Press ▶ to walk through it step by step. Missing safeguards show up where they belong:
+
+  ```
+  POST /api/users/login
+   1. Client sends POST /api/users/login
+   2. ⚠ No rate limiter
+   3. Runs the route's code                    auth.controller.ts:30
+   4. Reads user from the request body
+   5. Calls login()                            auth.service.ts:84
+   6.    Looks up user in the database         prisma.user.findUnique
+   7.    Checks the password                   bcrypt.compare
+   8.    Calls generateToken()
+   9.       Creates a login token              jwt.sign
+  10. Sends back 200 OK
+  ```
+
+  It follows middleware from every router the route is mounted under, then the handler, then the repo's own
+  functions it calls, up to 3 levels deep. It also recognizes database calls, outside services, password
+  and token work, validation and responses. A route counts as a credential endpoint by its path
+  (`/login`, `/reset`…) **or by what it does** (hashes or checks a password, issues a token), so a
+  sign-up at `POST /users` is caught too. Compare and PR preview show each changed request as a
+  before/after flow, for example "POST /login: − checks the password; ⚠ now: no rate limiter".
+- **A map**: HTTP routes on the left, your modules in the middle (clustered by directory), and packages,
+  APIs and databases on the right, so a request reads left to right through the app. Gaps are ringed:
+  login/sign-up/reset routes with **no rate limiting**, imports that don't resolve, imports of exports
+  that no longer exist, import cycles, and modules nothing uses.
+- **History**: every commit replayed. You see modules, routes, lines and open problems over time; churn
+  per commit, including code **thrown away within 5 commits** (and roughly how many LLM tokens that
+  was); the exact commit that introduced each problem; hotspots; and prioritized recommendations.
+- **Compare / PR preview**: any two commits, or a PR number, as before/after maps on one shared layout.
+  Green means added, red dashed means removed, ✕ means broken. The change list shows what the change
+  introduced ("this worked before, it's broken now") and what it fixed.
+- **Live**: point any OpenTelemetry-instrumented app at `POST /v1/traces?repo=owner/name` (OTLP/HTTP
+  JSON). The map then shows which parts call which, with p50/p95 latency and errors, plus routes in the
+  code that never ran and routes seen at runtime that the code map doesn't know about.
+
+```bash
+npm run atlas -- flow                 # every route, with ⚠ where a safeguard is missing
+npm run atlas -- flow "POST /login" --explain   # one request, step by step, with a plain-English line each
+npm run atlas -- diff                 # before opening a PR: your working tree vs. origin/main (incl. changed request flows)
+npm run atlas -- diff --fail-on-new   # same, exits 1 on new high-severity problems (pre-push hook / CI)
+npm run atlas -- history --max 300    # evolution report; --json out.json for the raw data
+npm run build:extension               # then chrome://extensions → Load unpacked → packages/extension/dist
+```
+
+Tested on real repos: on `gothinkster/node-express-realworld-example-app` it found that `POST
+/api/users/login` has no rate limiting, confirmed by hand, and traced it to the commit that added the
+route. It replays 150 commits in about 2 seconds on small-to-medium repos.
 
 ## Evaluation harness
 

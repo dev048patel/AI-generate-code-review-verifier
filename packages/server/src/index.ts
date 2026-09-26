@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { SqliteReviewStore, type ReviewStore } from "@acrv/core";
 import { createLLMProvider, type LLMProvider } from "@acrv/llm";
 import { createSandboxExecutor } from "@acrv/mutation";
+import { AtlasService } from "./atlas/atlasService.js";
 import { InMemorySessionStore, PostgresSessionStore, type SessionStore } from "./auth/sessions.js";
 import { BudgetedProvider, InMemorySpendLedger, PostgresSpendLedger, type SpendLedger } from "./budget.js";
 import { createPool, migrate } from "./db/migrate.js";
@@ -44,6 +45,9 @@ export * from "./githubApp.js";
  *   ACRV_SANDBOX              docker | local | local-unsafe (see @acrv/mutation)
  *   ACRV_CHECK_FAIL_BELOW     check run fails below this trust score (default 0: never)
  *   ACRV_METRICS_TOKEN        bearer token for /metrics
+ *   ACRV_TRACE_TOKEN          bearer token apps must send to POST /v1/traces (Repo Atlas live view)
+ *   ACRV_ATLAS_API_TOKEN      bearer token the browser extension uses for Atlas read endpoints
+ *   ACRV_ATLAS_MAX_COMMITS    history window for Repo Atlas (default 150)
  */
 async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> {
   const logger = createLogger({ service: "acrv" });
@@ -118,6 +122,23 @@ async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> {
     if (!oauth) logger.warn("dashboard sign-in is not configured: the API is open -- only acceptable on localhost");
     const dashboardDir = env.ACRV_DASHBOARD_DIR ?? path.join(repoRoot, "packages/dashboard/dist");
 
+    const atlas = new AtlasService({
+      cacheDir: path.join(sandboxRoot, "atlas-cache"),
+      maxCommits: Number(env.ACRV_ATLAS_MAX_COMMITS ?? 150),
+      pullRefs: async (repo, prNumber) => {
+        const res = await fetch(`https://api.github.com/repos/${repo}/pulls/${prNumber}`, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
+          },
+        });
+        if (!res.ok) throw new Error(`GitHub PR lookup failed: ${res.status}`);
+        const pr = (await res.json()) as { base: { sha: string }; head: { sha: string } };
+        return { baseSha: pr.base.sha, headSha: pr.head.sha };
+      },
+    });
+
     const app = createApp({
       deps: { githubClient: new RestGitHubClient(githubToken), llmProvider: baseProvider, reviewStore, sandboxRoot, dlq: new DeadLetterQueue(), executor },
       webhookSecret: env.GITHUB_WEBHOOK_SECRET,
@@ -131,6 +152,7 @@ async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> {
       metrics,
       metricsToken: env.ACRV_METRICS_TOKEN,
       logger,
+      atlas: { service: atlas, traceToken: env.ACRV_TRACE_TOKEN || undefined, apiToken: env.ACRV_ATLAS_API_TOKEN || undefined },
     });
     const port = Number(env.PORT ?? 3001);
     const server = app.listen(port, () => {

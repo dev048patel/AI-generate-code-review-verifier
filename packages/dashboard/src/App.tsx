@@ -6,6 +6,7 @@ import { ReviewDetail } from "./pages/ReviewDetail";
 import { EvalReport } from "./pages/EvalReport";
 import { TryIt } from "./pages/TryIt";
 import { LiveGithub } from "./pages/LiveGithub";
+import { Atlas } from "./pages/Atlas";
 
 export function App() {
   // undefined = loading, null = signed out (sign-in required)
@@ -40,6 +41,9 @@ export function App() {
           <NavLink to="/live" className={({ isActive }) => (isActive ? "active" : "")}>
             Live GitHub
           </NavLink>
+          <NavLink to="/atlas" className={({ isActive }) => (isActive ? "active" : "")}>
+            Repo Atlas
+          </NavLink>
           <NavLink to="/eval-report" className={({ isActive }) => (isActive ? "active" : "")}>
             Eval report
           </NavLink>
@@ -64,6 +68,7 @@ export function App() {
         <Route path="/" element={<ReviewsList />} />
         <Route path="/reviews/:id" element={<ReviewDetail />} />
         <Route path="/live" element={<LiveGithub />} />
+        <Route path="/atlas" element={<Atlas />} />
         <Route path="/eval-report" element={<EvalReport />} />
         <Route path="/try" element={<TryIt />} />
       </Routes>

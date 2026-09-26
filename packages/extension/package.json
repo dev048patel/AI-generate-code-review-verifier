@@ -1,0 +1,14 @@
+{
+  "name": "@acrv/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension: Repo Atlas impact panel on GitHub pull requests.",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  }
+}

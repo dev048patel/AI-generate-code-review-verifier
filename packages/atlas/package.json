@@ -1,0 +1,20 @@
+{
+  "name": "@acrv/atlas",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "bin": {
+    "acrv-atlas": "src/cli.ts"
+  },
+  "scripts": {
+    "atlas": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@acrv/mutation": "0.1.0",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

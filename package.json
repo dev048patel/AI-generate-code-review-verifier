@@ -18,7 +18,9 @@
     "eval": "npm run eval --workspace=@acrv/eval-harness --",
     "dev:server": "npm run dev --workspace=@acrv/server",
     "dev:dashboard": "npm run dev --workspace=@acrv/dashboard",
-    "mine": "npm run mine --workspace=@acrv/eval-harness --"
+    "mine": "npm run mine --workspace=@acrv/eval-harness --",
+    "atlas": "npm run atlas --workspace=@acrv/atlas --",
+    "build:extension": "npm run build --workspace=@acrv/extension"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.0.0",
